@@ -1,0 +1,436 @@
+
+---
+title: "Water usage of production plant"
+author: "Nestor Pereira"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 5
+    code_folding: show
+    #df_print: paged
+    #df_print: kable
+    #toc_float: true
+      #collapsed: false
+      #smooth_scroll: TRUE
+    theme: cosmo #spacelab #yeti #united #cosmo
+    highlight: tango
+  pdf_document:
+    df_print: kable
+fontsize: 12pt
+geometry: margin=0.25in
+always_allow_html: yes
+---
+
+<style>
+/* HTML FORMATTING */
+h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5 {
+  margin-top: 25px; /* space before each header */
+  font-weight: bold; /* bold headers */
+}
+</style>
+
+```{R, echo=FALSE}
+# I set some GLOBAL R chunk options here.
+#   (to hide this message add "echo=FALSE" to the code chunk options)
+
+knitr::opts_chunk$set(comment = NA, message = FALSE, warning = FALSE, width = 100)
+knitr::opts_chunk$set(fig.align = "center", fig.height = 4, fig.width = 6)
+```
+
+# Water Usage of Production Plant
+
+<!---
+Data from http://www.statsci.org/data/general/water.html
+Draper, N.R., and Smith, H. (1981).
+Applied Regression Analysis. Second Edition. Wiley, New York, page 352.
+-->
+
+A production plant cost-control engineer is responsible for cost reduction. One
+of the costly items in his plant is the amount of water used by the production
+facilities each month. He decided to investigate water usage by collecting
+seventeen observations on his plant's water usage and other variables.
+
+```{R}
+library(tidyverse)
+
+# First, download the data to your computer,
+#   save in the same folder as this Rmd file.
+
+
+
+# read the data
+dat_water <- read_csv("ADA2_HW_04_water.csv")
+str(dat_water)
+#dat_water
+
+# Add an ID column
+dat_water <-
+  dat_water %>%
+  mutate(
+    id = 1:n()
+    
+  )
+
+
+
+
+```
+
+__Note:__
+Because of the high correlation between `Production` and `Persons`,
+  do not include `Persons` in the model.
+
+# Rubric
+
+Following the in-class assignment this week,
+  perform a complete multiple regression analysis.
+
+1. (1 p) Scatterplot matrix and interpretation
+1. (2 p) Fit model, assess multiple regression assumptions
+1. (1 p) Interpret added variable plots
+1. (1 p) If there are model assumption issues, say how you address them at the beginning and start again.
+1. (1 p) State and interpret the multiple regression hypothesis tests
+1. (2 p) Interpret the significant multiple regression coefficients
+1. (1 p) Interpret the multiple regression $R^2$
+1. (1 p) One- or two-sentence summary
+
+
+# Solutions
+
+## __(1 p)__ Scatterplot matrix
+_In a scatterplot matrix below interpret the relationship between each pair of variables.
+If a transformation is suggested by the plot (that is, because there is a curved relationship),
+  also plot the data on the transformed scale and
+  perform the following analysis on the transformed scale.
+Otherwise indicate that no transformation is necessary._
+
+```{R}
+library(ggplot2)
+library(GGally)
+p <- ggpairs(dat_water)
+print(p)
+```
+_A parallel coordinate plot is another way of seeing patterns of observations
+over a range of variables._
+```{R, fig.height = 4, fig.width = 10, echo=FALSE}
+# http://www.inside-r.org/packages/cran/GGally/docs/ggparcoord
+library(ggplot2)
+library(GGally)
+
+# univariate min/max scaling
+p_uniminmax <-
+  ggparcoord(
+    data = dat_water
+  , columns = c(5, 2, 4, 1, 3) #1:5
+  , groupColumn = 5 # color (pick the response)
+  #, order = "anyClass"
+  , scale = "uniminmax" # "uniminmax". "globalminmax"
+  , showPoints = FALSE
+  , title = "Parallel Coordinate Plot for the Water Data"
+  #, alphaLines = 1/3
+  #, shadeBox = "white"
+  #, boxplot = TRUE
+  ) + theme_bw()
+print(p_uniminmax)
+```
+
+### Solution
+
+We ignore all the plots in the persons variable row and the person variable column, since the variable person is not considered for the model.
+
+Looking at the other scatter plots, all of them follow linear relationship, therefore we don't need to do any transformation on the data.
+
+
+## __(2 p)__ Multiple regression assumptions (assessing model fit)
+_Below the multiple regression is fit.
+Start by assessing the model assumptions by interpretting what you learn from each of the six plots._
+_If assumptions are not met, attempt to address by transforming a variable and
+restart at the beginning using the new transformed variable._
+
+###MODEL FIT WITH SAMPLE 16 AND ASSUMPTION ANALYSIS
+
+```{R}
+# fit the simple linear regression model
+#lm_w_tpdp <- lm(Water ~ Temperature + Production + Days + Persons, data = dat_water)
+lm_w_tpd <- lm(Water ~ Temperature + Production + Days, data = dat_water)
+```
+
+```{R, fig.height = 10, fig.width = 10, echo=FALSE}
+# plot diagnistics
+par(mfrow=c(3,3))
+plot(lm_w_tpd, which = c(1,4,6))
+
+plot(dat_water$Temperature, lm_w_tpd$residuals, main="Residuals vs Temperature")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+
+plot(dat_water$Production, lm_w_tpd$residuals, main="Residuals vs Production")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+
+plot(dat_water$Days, lm_w_tpd$residuals, main="Residuals vs Days")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+
+# plot(dat_water$Persons, lm_w_tpd$residuals, main="Residuals vs Persons")
+#   # horizontal line at zero
+#   abline(h = 0, col = "gray75")
+
+# Normality of Residuals
+library(car)
+qqPlot(lm_w_tpd$residuals, las = 1, id = list(n = 3), main="QQ Plot")
+
+# residuals vs order of data
+plot(lm_w_tpd$residuals, main="Residuals vs Order of data")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+```
+
+### Solution with point 16
+
+1. Model redisuals and fitted ones dont follow any specific pattern 
+2. The cook distance shows which points could be considered outliers or more unusual to appear. In this case point 16 has a high cook distance and its considered an outlier so it is removed.
+3. This plot shows that point 16 also has a high leverage on the model, supporting the decision of removing it.
+
+We'll retrain the model and re run the diagnostic
+
+###MODEL FIT WITHOUT SAMPLE 16 AND ASSUMPTION ANALYSIS
+
+```{R}
+# read the data
+dat_water <- read_csv("ADA2_HW_04_water.csv")
+str(dat_water)
+#dat_water
+
+# Add an ID column
+dat_water <-
+  dat_water %>%
+  mutate(
+    id = 1:n()
+  )%>%
+  filter(
+    !(id==16)
+  )
+
+```
+
+```{R}
+# fit the simple linear regression model
+#lm_w_tpdp <- lm(Water ~ Temperature + Production + Days + Persons, data = dat_water)
+lm_w_tpd <- lm(Water ~ Temperature + Production + Days, data = dat_water)
+```
+
+Plot diagnostics.
+```{R, fig.height = 10, fig.width = 10, echo=FALSE}
+# plot diagnistics
+par(mfrow=c(3,3))
+plot(lm_w_tpd, which = c(1,4,6))
+
+plot(dat_water$Temperature, lm_w_tpd$residuals, main="Residuals vs Temperature")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+
+plot(dat_water$Production, lm_w_tpd$residuals, main="Residuals vs Production")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+
+plot(dat_water$Days, lm_w_tpd$residuals, main="Residuals vs Days")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+
+# plot(dat_water$Persons, lm_w_tpd$residuals, main="Residuals vs Persons")
+#   # horizontal line at zero
+#   abline(h = 0, col = "gray75")
+
+# Normality of Residuals
+library(car)
+qqPlot(lm_w_tpd$residuals, las = 1, id = list(n = 3), main="QQ Plot")
+
+# residuals vs order of data
+plot(lm_w_tpd$residuals, main="Residuals vs Order of data")
+  # horizontal line at zero
+  abline(h = 0, col = "gray75")
+```
+
+
+
+### Solution without point 16
+
+1. Model residuals and fitted ones dont follow any specific pattern 
+2. The cook distance shows which points could be considered outliers or more unusual to appear. In this case there any not unique singular points with enough high cook's distance to be considered outliers.
+3. This plot shows that none of the remaining points have a strong enough effect on the model, then none will be removed.
+4. On this residual graph there is not an specific pattern followed by the model residuals respect the temperature.
+5. On this residual graph there is not an specific pattern followed by the model residuals respect the production.
+6. On this residual graph there is not an specific pattern followed by the model residuals respect the days. 
+7. QQ plot without the point 16 support the normality assumption needed for multiple regression.
+8. No specific pattern is shown, all the data was indexed in a random order where no differences can be seen between earlier samples and last samples.
+
+## __(1 p)__ Added variable plots
+
+_Use partial regression residual plots (added variable plots)
+  to check for the need for transformations.
+If linearity is not supported, address and restart at the beginning._
+
+```{R, fig.height = 8, fig.width = 8, echo=FALSE}
+library(car)
+avPlots(lm_w_tpd, id.n=3)
+```
+
+### Solution
+
+Since there is not much data, is hard to clearly see a trend.
+
+**Partial plot with temperature**
+
+The partial plot shows a linear positive trend suggesting that no transformation is needed. 
+
+**Partial plot with production**
+
+Could be a curvilinear relationship. since we don't have much data it's hard to tell. No transformation is going to be implemented on this data since it could also be following a positive linear trend.
+
+**Partial plot with days**
+
+The partial plot shows a linear negative trend suggesting that no transformation is needed. 
+
+## __(1 p)__ Multiple regression hypothesis tests
+_State the hypothesis test and conclusion for each regression coefficient._
+
+```{R}
+# use summary() to get t-tests of parameters (slope, intercept)
+summary(lm_w_tpd)
+```
+
+### Solution
+
+Each hypothesis is testing, conditional on all other predictors
+being in the model, whether the addition of the predictor being tested explains
+significantly more variability in Water than without it.
+
+For $H_0: \beta_{\textrm{Temperature}}=0$, the $t$-statistic is
+`r signif(summary(lm_w_tpd)$coefficients[2,3],4)`
+with an associated p-value of
+`r signif(summary(lm_w_tpd)$coefficients[2,4],4)`.
+Thus, we fail to reject 
+$H_0$ concluding that the slope is NOT statistically significantly different
+from 0 conditional on the other variables in the model.
+
+Similarly,
+for $H_0: \beta_{\textrm{Production}}=0$, the $t$-statistic is
+`r signif(summary(lm_w_tpd)$coefficients[3,3],4)`
+with an associated p-value of
+`r signif(summary(lm_w_tpd)$coefficients[3,4],4)`.
+Thus, we  reject 
+$H_0$ concluding that the slope is statistically significantly different
+from 0 conditional on the other variables in the model.
+
+
+Similarly,
+for $H_0: \beta_{\textrm{Days}}=0$, the $t$-statistic is 
+`r signif(summary(lm_w_tpd)$coefficients[4,3],4)`
+with an associated p-value of
+`r signif(summary(lm_w_tpd)$coefficients[4,4],4)`.
+Thus, we fail to reject 
+$H_0$ concluding that the slope is NOT statistically significantly different
+from 0 conditional on the other variables in the model.
+
+
+## __(1 p)__ Multiple regression interpret coefficients
+_Interpret the significant coefficients of the multiple regression model._
+
+
+### Solution
+
+The coefficient for Temperature is estimated at
+$\hat{\beta}_{\textrm{Temperature}}$=`r signif(summary(lm_w_tpd)$coefficients[2,1],4)`,
+thus we expect the Water to increase by
+`r signif(summary(lm_w_tpd)$coefficients[2,1],4)`
+for each degree increase in Temperature
+holding the other variables constant.
+
+The coefficient for Production is estimated at
+$\hat{\beta}_{\textrm{Production}}$=`r signif(summary(lm_w_tpd)$coefficients[3,1],4)`,
+thus we expect the Water to increase by
+`r signif(summary(lm_w_tpd)$coefficients[3,1],4)`
+for each number increase in production
+holding the other variables constant.
+
+
+The coefficient for Days is estimated at
+$\hat{\beta}_{\textrm{Days}}$=`r signif(summary(lm_w_tpd)$coefficients[4,1],4)`,
+thus we expect the Water to increase by
+`r signif(summary(lm_w_tpd)$coefficients[4,1],4)`
+for each day increase
+holding the other variables constant.
+
+
+
+## __(1 p)__ Multiple regression $R^2$
+_Interpret the Multiple R-squared value._
+
+### Solution
+
+The R2 shows the variation of the response variable explained by both predictors. On this case, the R2 is 0.4076, meaning 40% of the variation is explain by the predictors.
+
+## __(1 p)__ Summary
+_Summarize your findings in one sentence._
+
+### Solution
+
+On this multiple linear regression the correlation between the variable and the predictor is not that strong. Only production is considered associated to the variable water. the other two shown a smaller correlation with the variable water and with the hypothesis test we could check that there wasn't an association with it. We could also see in the added variable plot for these two not associated variables, that the slope of the partial correlation wasnt steep enough meaning that the partial correlation with water from this variables wasnt strong enough.
+
+
+
+# Unused plots
+
+```{R}
+## Aside: While I generally recommend against 3D plots for a variety of reasons,
+## so you can visualize the surface fit in 3D, here's a 3D version of the plot.
+## I will point out a feature in this plot that we would't see in other plots
+## and would typically only be detected by careful consideration
+## of a "more complicated" second-order model that includes curvature.
+
+# library(rgl)
+# library(car)
+# scatter3d(Water ~ Temperature + Production, data = dat_water)
+```
+
+These bivariate plots can help show the relationships between the response and
+  predictor variables and identify each observation.
+
+```{R, fig.height = 4, fig.width = 10, echo=FALSE}
+# ggplot: Plot the data with linear regression fit and confidence bands
+library(ggplot2)
+p1 <- ggplot(dat_water, aes(x = Temperature, y = Water, label = id))
+p1 <- p1 + geom_point(aes(colour = Production), size=3)
+# plot labels next to points
+p1 <- p1 + geom_text(hjust = 0.5, vjust = -0.5, alpha = 1/2)
+# plot regression line and confidence band
+p1 <- p1 + geom_smooth(method = lm)
+p1 <- p1 + labs(title="Selling Water by Temperature with colored Production")
+#print(p1)
+
+library(ggplot2)
+p2 <- ggplot(dat_water, aes(x = Temperature, y = Water, label = id))
+p2 <- p2 + geom_point(aes(colour = Days), size=3)
+# plot labels next to points
+p2 <- p2 + geom_text(hjust = 0.5, vjust = -0.5, alpha = 1/2)
+# plot regression line and confidence band
+p2 <- p2 + geom_smooth(method = lm)
+p2 <- p2 + labs(title="Selling Water by Temperature with colored Days")
+
+library(ggplot2)
+p3 <- ggplot(dat_water, aes(x = Production, y = Water, label = id))
+p3 <- p3 + geom_point(aes(colour = Days), size=3)
+# plot labels next to points
+p3 <- p3 + geom_text(hjust = 0.5, vjust = -0.5, alpha = 1/2)
+# plot regression line and confidence band
+p3 <- p3 + geom_smooth(method = lm)
+p3 <- p3 + labs(title="Selling Water by Production with colored Days")
+#print(p3)
+
+library(gridExtra)
+grid.arrange(grobs = list(p1, p2, p3), nrow=1)
+```
+
